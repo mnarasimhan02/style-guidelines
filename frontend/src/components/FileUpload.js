@@ -1,21 +1,23 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Paper, Typography, Box } from '@mui/material';
+import { Paper, Typography, Box, CircularProgress } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { styled } from '@mui/material/styles';
 
-const DropzoneContainer = styled(Paper)(({ theme }) => ({
+const DropzoneContainer = styled(Paper)(({ theme, isdragactive, disabled }) => ({
   padding: theme.spacing(3),
   textAlign: 'center',
-  cursor: 'pointer',
-  border: `2px dashed ${theme.palette.primary.main}`,
-  backgroundColor: theme.palette.background.default,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  border: `2px dashed ${disabled ? theme.palette.grey[300] : theme.palette.primary.main}`,
+  backgroundColor: isdragactive === 'true' ? theme.palette.action.hover : theme.palette.background.default,
+  opacity: disabled ? 0.6 : 1,
   '&:hover': {
-    backgroundColor: theme.palette.action.hover,
+    backgroundColor: disabled ? theme.palette.background.default : theme.palette.action.hover,
   },
 }));
 
-const FileUpload = ({ onUpload, accept, disabled }) => {
+const FileUpload = ({ onUpload, accept, disabled = false, loading = false, success = false }) => {
   const onDrop = useCallback(
     (acceptedFiles) => {
       if (acceptedFiles.length > 0) {
@@ -25,43 +27,47 @@ const FileUpload = ({ onUpload, accept, disabled }) => {
     [onUpload]
   );
 
-  // Convert file extensions to MIME types
-  const acceptedTypes = {
-    '.pdf': ['application/pdf'],
-    '.docx': [
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/msword'
-    ]
-  };
-
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: acceptedTypes,
-    disabled,
+    accept: accept === '.pdf' 
+      ? { 'application/pdf': ['.pdf'] }
+      : { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] },
+    disabled: disabled || loading,
     multiple: false,
   });
-
-  const getAcceptedFileTypes = () => {
-    return accept.split(',').map(ext => ext.trim()).join(', ');
-  };
 
   return (
     <DropzoneContainer
       {...getRootProps()}
       elevation={0}
-      sx={{ opacity: disabled ? 0.5 : 1 }}
+      isdragactive={isDragActive.toString()}
+      disabled={disabled || loading}
     >
       <input {...getInputProps()} />
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-        <Typography variant="body1" color="textSecondary">
-          {isDragActive
-            ? 'Drop the file here'
-            : `Drag and drop a file here, or click to select`}
-        </Typography>
-        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-          Accepted formats: {getAcceptedFileTypes()}
-        </Typography>
+        {loading ? (
+          <>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
+            <Typography>Uploading...</Typography>
+          </>
+        ) : success ? (
+          <>
+            <CheckCircleIcon color="success" sx={{ fontSize: 40, mb: 2 }} />
+            <Typography>File uploaded successfully!</Typography>
+          </>
+        ) : (
+          <>
+            <CloudUploadIcon sx={{ fontSize: 40, mb: 2, color: disabled ? 'text.disabled' : 'primary.main' }} />
+            <Typography>
+              {isDragActive
+                ? 'Drop the file here'
+                : 'Drag and drop a file here, or click to select'}
+            </Typography>
+            <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
+              Accepted format: {accept === '.pdf' ? 'PDF' : 'DOCX'}
+            </Typography>
+          </>
+        )}
       </Box>
     </DropzoneContainer>
   );

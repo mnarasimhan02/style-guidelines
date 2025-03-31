@@ -8,6 +8,7 @@ import logging
 import tempfile
 import io
 import PyPDF2
+from docx import Document
 from app.processor.document_processor import DocumentProcessor
 from app.processor.rule_extractor import RuleExtractor
 from app.models.rule_schema import StyleRule, RuleCategory, RuleType
@@ -30,6 +31,34 @@ app.add_middleware(
 # Initialize processors
 doc_processor = DocumentProcessor()
 rule_extractor = RuleExtractor()
+
+def validate_pdf(filename: str, content_type: str) -> bool:
+    """Validate PDF file."""
+    if not filename.lower().endswith('.pdf'):
+        raise HTTPException(
+            status_code=400,
+            detail="File must be a PDF"
+        )
+    if content_type != "application/pdf":
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. File must be a valid PDF."
+        )
+    return True
+
+def validate_docx(filename: str, content_type: str) -> bool:
+    """Validate DOCX file."""
+    if not filename.lower().endswith('.docx'):
+        raise HTTPException(
+            status_code=400,
+            detail="File must be a DOCX"
+        )
+    if content_type != "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. File must be a valid DOCX."
+        )
+    return True
 
 # Add default rules for testing
 default_rules_text = """
@@ -65,10 +94,10 @@ style_guide_processed = False
 async def upload_style_guide(file: UploadFile = File(...)):
     global style_guide_processed
     try:
-        logger.info(f"Received style guide file: {file.filename}")
+        logger.info(f"Received style guide file: {file.filename} (type: {file.content_type})")
         
-        if not file.filename.lower().endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="Style guide must be a PDF file")
+        # Validate PDF file
+        validate_pdf(file.filename, file.content_type)
         
         # Read the uploaded file content
         content = await file.read()
@@ -77,10 +106,10 @@ async def upload_style_guide(file: UploadFile = File(...)):
         pdf_file = io.BytesIO(content)
         pdf_reader = PyPDF2.PdfReader(pdf_file)
         
-        # Extract text from all pages
+        # Extract text from page 6 onwards
         text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text()
+        for page_num in range(5, len(pdf_reader.pages)):  # Start from index 5 (6th page)
+            text += pdf_reader.pages[page_num].extract_text()
             
         # For testing, add default rules if the extracted text is too short
         if len(text.strip()) < 100:
@@ -92,7 +121,14 @@ async def upload_style_guide(file: UploadFile = File(...)):
         doc_processor.process_style_guide(content, categorized_rules)
         style_guide_processed = True
         
-        return {"filename": file.filename, "status": "success", "message": "Style guide processed successfully", "rules": categorized_rules}
+        return {
+            "filename": file.filename,
+            "status": "success",
+            "message": "Style guide processed successfully",
+            "rules": categorized_rules
+        }
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Error processing style guide: {str(e)}")
         raise HTTPException(
@@ -105,51 +141,33 @@ async def upload_csr(file: UploadFile = File(...)):
     global style_guide_processed
     
     try:
-        logger.info(f"Received CSR file: {file.filename}")
+        logger.info(f"Received CSR file: {file.filename} (type: {file.content_type})")
         
         if not style_guide_processed:
             raise HTTPException(status_code=400, detail="Please upload style guide first")
             
-        if not (file.filename.lower().endswith('.pdf') or file.filename.lower().endswith('.docx')):
-            raise HTTPException(status_code=400, detail="CSR must be a PDF or DOCX file")
+        # Validate DOCX file
+        validate_docx(file.filename, file.content_type)
         
-        # Save uploaded file temporarily
-        suffix = '.pdf' if file.filename.endswith('.pdf') else '.docx'
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-            logger.info(f"Saving to temporary file: {temp_file.name}")
-            content = await file.read()
-            temp_file.write(content)
-            temp_file.flush()
-            
-            # Process the CSR document
-            logger.info("Processing CSR document...")
-            results = doc_processor.process_csr(temp_file.name)
-            
-            # Clean up
-            logger.info("Cleaning up temporary file...")
-            os.unlink(temp_file.name)
-            
-            # Format results for frontend
-            corrections = [
-                {
-                    "section": "Section " + str(i + 1),
-                    "original_text": result["text"],
-                    "corrected_text": result["corrected_text"],
-                    "rules_applied": [
-                        f"{change} (Rule: {match['rule']})"
-                        for match in result["matches"]
-                        for change in match["changes"]
-                    ]
-                }
-                for i, result in enumerate(results)
-            ]
-            
-            logger.info(f"Found {len(corrections)} corrections")
-            return {
-                "filename": file.filename,
-                "status": "success",
-                "corrections": corrections
-            }
+        # Read the uploaded file content
+        content = await file.read()
+        
+        # Process DOCX content
+        docx_file = io.BytesIO(content)
+        doc = Document(docx_file)
+        
+        # Extract text from the document
+        text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+        
+        # Check document against style guide
+        results = doc_processor.check_document(text)
+        return {
+            "filename": file.filename,
+            "status": "success",
+            "results": results
+        }
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Error processing CSR: {str(e)}")
         raise HTTPException(
@@ -158,8 +176,7 @@ async def upload_csr(file: UploadFile = File(...)):
         )
 
 @app.get("/health")
-async def health_check():
-    """Health check endpoint"""
+def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
