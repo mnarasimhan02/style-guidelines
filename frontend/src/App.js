@@ -13,10 +13,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Button,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import FileUpload from './components/FileUpload';
 import ResultsTable from './components/ResultsTable';
+import RuleDrawer from './components/RuleDrawer';
 import { uploadFile } from './services/api';
 
 const StyledContainer = styled(Container)(({ theme }) => ({
@@ -30,6 +32,8 @@ const App = () => {
   const [success, setSuccess] = useState(null);
   const [results, setResults] = useState(null);
   const [styleGuideUploaded, setStyleGuideUploaded] = useState(false);
+  const [rules, setRules] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleStyleGuideUpload = async (file) => {
     try {
@@ -37,6 +41,8 @@ const App = () => {
       setError(null);
       const response = await uploadFile('/upload/style-guide', file);
       setStyleGuideUploaded(true);
+      setRules(response.rules);
+      setDrawerOpen(true);
       setSuccess('Style guide uploaded and processed successfully!');
     } catch (err) {
       setError(err.message || 'Error uploading style guide');
@@ -140,6 +146,15 @@ const App = () => {
           disabled={loading || styleGuideUploaded}
         />
         {styleGuideUploaded && (
+          <Button
+            variant="outlined"
+            onClick={() => setDrawerOpen(true)}
+            sx={{ mt: 2 }}
+          >
+            View Style Guide Rules
+          </Button>
+        )}
+        {styleGuideUploaded && (
           <Alert severity="success" sx={{ mt: 2 }}>
             Style guide uploaded and ready for use
           </Alert>
@@ -200,6 +215,12 @@ const App = () => {
           </TableContainer>
         </>
       )}
+
+      <RuleDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        rules={rules}
+      />
     </StyledContainer>
   );
 };

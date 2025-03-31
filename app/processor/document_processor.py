@@ -5,6 +5,8 @@ import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 import re
+import io
+from app.models.rule_schema import StyleRule
 
 class DocumentProcessor:
     def __init__(self):
@@ -119,28 +121,42 @@ class DocumentProcessor:
         
         return corrected, changes_made
 
-    def process_style_guide(self, file_path: str):
-        """Process style guide and build index"""
-        try:
-            # Extract text from PDF
-            text = self.extract_text_from_pdf(file_path)
+    def process_style_guide(self, content: bytes, rules: Dict[str, List[StyleRule]]):
+        """Process the style guide content and store the rules"""
+        self.style_rules = rules
+        
+    def process_document(self, file_path: str) -> List[Dict]:
+        """Process a document against stored style rules"""
+        results = []
+        
+        if not self.style_rules:
+            return results
             
-            # Split into chunks
-            self.style_rules = self.chunk_text(text)
+        # Read document content
+        if file_path.endswith('.pdf'):
+            with open(file_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                text = ""
+                for page in pdf_reader.pages:
+                    text += page.extract_text()
+        else:
+            # Handle docx files here
+            text = "Document text extraction not implemented for this format"
             
-            # Create embeddings
-            embeddings = self.model.encode(self.style_rules)
-            
-            # Build FAISS index
-            dimension = embeddings.shape[1]
-            self.index = faiss.IndexFlatL2(dimension)
-            self.index.add(embeddings.astype('float32'))
-            
-            print(f"Processed {len(self.style_rules)} style rules")
-            
-        except Exception as e:
-            print(f"Error processing style guide: {str(e)}")
-            raise
+        # Apply style rules
+        for category, rules in self.style_rules.items():
+            for rule in rules:
+                # Simple text matching for now
+                if rule.pattern in text:
+                    results.append({
+                        "category": category,
+                        "rule": rule.description,
+                        "type": rule.type,
+                        "original": rule.pattern,
+                        "suggestion": rule.replacement
+                    })
+                    
+        return results
 
     def process_csr(self, file_path: str) -> List[Dict[str, Any]]:
         """Process CSR document and find style matches"""
