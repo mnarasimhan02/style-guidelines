@@ -57,11 +57,11 @@ const App = () => {
       setLoading(true);
       setError(null);
       const response = await uploadFile('/upload/csr', file);
-      if (response.corrections) {
-        setResults(response.corrections);
+      if (response && Array.isArray(response)) {
+        setResults(response);
         setSuccess('CSR document processed successfully!');
       } else {
-        throw new Error('No corrections received from server');
+        throw new Error('Invalid response format from server');
       }
     } catch (err) {
       setError(err.message || 'Error uploading CSR');
@@ -190,23 +190,28 @@ const App = () => {
                   <TableCell>Section</TableCell>
                   <TableCell>Original Text</TableCell>
                   <TableCell>Corrected Text</TableCell>
-                  <TableCell>Rules Applied</TableCell>
+                  <TableCell>Changes and Matches</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {results.map((result, index) => (
                   <TableRow key={index}>
-                    <TableCell>{result.section}</TableCell>
-                    <TableCell style={{ whiteSpace: 'pre-wrap' }}>{result.original_text}</TableCell>
+                    <TableCell>Section {index + 1}</TableCell>
+                    <TableCell style={{ whiteSpace: 'pre-wrap' }}>{result.text}</TableCell>
                     <TableCell style={{ whiteSpace: 'pre-wrap' }}>
-                      {highlightDifferences(result.original_text, result.corrected_text)}
+                      {highlightDifferences(result.text, result.corrected_text)}
                     </TableCell>
                     <TableCell>
-                      <ul style={{ margin: 0, paddingInlineStart: '20px' }}>
-                        {result.rules_applied.map((rule, i) => (
-                          <li key={i}>{rule}</li>
-                        ))}
-                      </ul>
+                      {result.changes.map((change, idx) => (
+                        <Typography key={idx} variant="body2" gutterBottom>
+                          {change}
+                        </Typography>
+                      ))}
+                      {result.matches.map((match, idx) => (
+                        <Typography key={`match-${idx}`} variant="body2" color="textSecondary" gutterBottom>
+                          Rule: {match.rule.description}
+                        </Typography>
+                      ))}
                     </TableCell>
                   </TableRow>
                 ))}

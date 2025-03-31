@@ -111,11 +111,24 @@ class RuleExtractor:
                         
         return rules
 
-    def categorize_rules(self, rules: List[Dict]) -> Dict[str, List[Dict]]:
+    def categorize_rules(self, rules: List[Dict]) -> Dict[str, List[StyleRule]]:
+        """Convert raw rules to StyleRule objects and categorize them"""
         categorized = {}
         for rule in rules:
             category = rule['category']
             if category not in categorized:
                 categorized[category] = []
-            categorized[category].append(rule)
+                
+            # Convert dict to StyleRule
+            style_rule = StyleRule(
+                id=rule['id'],
+                category=rule['category'],
+                type=rule['type'],
+                description=rule['description'],
+                pattern=rule['pattern'],
+                replacement=rule['replacement'],
+                examples=rule['examples']
+            )
+            categorized[category].append(style_rule)
+            
         return {k: v for k, v in sorted(categorized.items(), key=lambda x: len(x[1]), reverse=True)}

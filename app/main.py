@@ -22,8 +22,8 @@ app = FastAPI(title="Style Guide Checker")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -139,33 +139,32 @@ async def upload_style_guide(file: UploadFile = File(...)):
 @app.post("/upload/csr")
 async def upload_csr(file: UploadFile = File(...)):
     global style_guide_processed
-    
     try:
         logger.info(f"Received CSR file: {file.filename} (type: {file.content_type})")
         
-        if not style_guide_processed:
-            raise HTTPException(status_code=400, detail="Please upload style guide first")
-            
         # Validate DOCX file
         validate_docx(file.filename, file.content_type)
         
-        # Read the uploaded file content
-        content = await file.read()
+        if not style_guide_processed:
+            raise HTTPException(
+                status_code=400,
+                detail="Please upload a style guide first"
+            )
         
-        # Process DOCX content
-        docx_file = io.BytesIO(content)
-        doc = Document(docx_file)
-        
-        # Extract text from the document
-        text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
-        
-        # Check document against style guide
-        results = doc_processor.check_document(text)
-        return {
-            "filename": file.filename,
-            "status": "success",
-            "results": results
-        }
+        # Create a temporary file to store the uploaded content
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file.flush()
+            
+            # Process the CSR document
+            results = doc_processor.process_csr(temp_file.name)
+            
+            # Clean up
+            os.unlink(temp_file.name)
+            
+            return results
+            
     except HTTPException as e:
         raise e
     except Exception as e:

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8001';
+const API_BASE_URL = 'http://127.0.0.1:8001';
 
 export const uploadFile = async (endpoint, file) => {
   const formData = new FormData();
@@ -14,38 +14,15 @@ export const uploadFile = async (endpoint, file) => {
     });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.message || 'Upload failed');
+    console.error('Upload error:', error);
+    throw new Error(error.response?.data?.detail || error.message || 'Upload failed');
   }
 };
 
 export const uploadStyleGuide = async (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${API_BASE_URL}/upload/styleguide`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to upload style guide');
-  }
-
-  return response.json();
+  return uploadFile('/upload/style-guide', file);
 };
 
-export const checkDocument = async (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${API_BASE_URL}/check/document`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to check document');
-  }
-
-  return response.json();
+export const uploadCSR = async (file) => {
+  return uploadFile('/upload/csr', file);
 };
