@@ -121,11 +121,27 @@ async def upload_style_guide(file: UploadFile = File(...)):
         doc_processor.process_style_guide(content, categorized_rules)
         style_guide_processed = True
         
+        # Convert rules to dictionary format for frontend
+        formatted_rules = {}
+        for category, rule_list in categorized_rules.items():
+            formatted_rules[category] = [
+                {
+                    'id': str(rule.id),
+                    'pattern': rule.pattern,
+                    'replacement': rule.replacement,
+                    'type': rule.type,
+                    'category': rule.category,
+                    'description': rule.description or '',
+                    'examples': rule.examples or []
+                }
+                for rule in rule_list
+            ]
+        
         return {
             "filename": file.filename,
             "status": "success",
             "message": "Style guide processed successfully",
-            "rules": categorized_rules
+            "rules": formatted_rules
         }
     except HTTPException as e:
         raise e

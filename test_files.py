@@ -1,6 +1,9 @@
 import requests
 import os
 import mimetypes
+import unittest
+import sys
+from tests.test_style_rules import TestStyleRules
 
 def upload_file(url: str, file_path: str) -> dict:
     """Upload a file to the specified endpoint"""
@@ -46,5 +49,22 @@ def main():
                 print(f"- {change}")
         print("-" * 80)
 
-if __name__ == "__main__":
-    main()
+def run_all_tests():
+    """Run all test suites"""
+    # Create test suite
+    test_suite = unittest.TestSuite()
+    
+    # Add test cases
+    test_suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestStyleRules))
+    # Add other test cases here...
+    
+    # Run tests
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(test_suite)
+    
+    # Return True if all tests passed
+    return result.wasSuccessful()
+
+if __name__ == '__main__':
+    success = run_all_tests()
+    sys.exit(0 if success else 1)

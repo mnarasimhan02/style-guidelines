@@ -47,41 +47,43 @@ const RuleDrawer = ({ open = false, onClose = () => {}, rules = {} }) => {
     const backgroundColor = RuleTypeColors[rule.type] || '#f5f5f5';
     return (
       <Box 
-        key={rule.id || Math.random()} 
+        key={rule.id} 
         sx={{ 
-          p: 1, 
-          my: 1, 
+          p: 2,
+          mb: 1,
           borderRadius: 1,
           backgroundColor,
-          border: '1px solid rgba(0, 0, 0, 0.12)'
+          '&:hover': {
+            boxShadow: 1,
+          }
         }}
       >
-        <Typography variant="body2" gutterBottom>
-          {rule.description}
+        <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+          Pattern: {rule.pattern}
         </Typography>
-        {rule.examples && rule.examples.length > 0 && (
-          <Box sx={{ mt: 1 }}>
-            <Typography variant="caption" color="textSecondary">
-              Examples:
-            </Typography>
-            {rule.examples.map((example, index) => (
-              <Typography key={index} variant="caption" display="block" sx={{ ml: 1 }}>
-                • {example}
-              </Typography>
-            ))}
-          </Box>
+        <Typography variant="body2" color="text.secondary">
+          Replacement: {rule.replacement}
+        </Typography>
+        {rule.description && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {rule.description}
+          </Typography>
         )}
-        <Chip
-          label={rule.type}
-          size="small"
-          sx={{
-            mt: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.08)',
-            '& .MuiChip-label': {
-              fontSize: '0.7rem',
-            },
-          }}
-        />
+        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+          <Chip
+            label={rule.type}
+            size="small"
+            sx={{ backgroundColor: RuleTypeColors[rule.type] }}
+          />
+          {rule.examples && rule.examples.length > 0 && (
+            <Chip
+              label={`${rule.examples.length} example${rule.examples.length > 1 ? 's' : ''}`}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          )}
+        </Stack>
       </Box>
     );
   };
@@ -93,40 +95,14 @@ const RuleDrawer = ({ open = false, onClose = () => {}, rules = {} }) => {
         <ListItemButton onClick={() => handleCategoryClick(category)}>
           <ListItemText 
             primary={
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography variant="subtitle1" component="span">
-                  {category}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="subtitle1">
+                  {category} ({rules.length} rules)
                 </Typography>
-                <Typography 
-                  variant="caption" 
-                  color="textSecondary" 
-                  sx={{ ml: 1 }}
-                >
-                  ({rules.length} rules)
-                </Typography>
+                {expandedCategories[category] ? <ExpandLess /> : <ExpandMore />}
               </Box>
             }
-            secondary={
-              <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                {tags.map((tag, index) => (
-                  <Chip
-                    key={index}
-                    label={tag}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      height: '20px',
-                      '& .MuiChip-label': {
-                        fontSize: '0.7rem',
-                        px: 1,
-                      },
-                    }}
-                  />
-                ))}
-              </Stack>
-            }
           />
-          {expandedCategories[category] ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
       </Box>
     );
@@ -141,28 +117,34 @@ const RuleDrawer = ({ open = false, onClose = () => {}, rules = {} }) => {
       anchor="right"
       open={open}
       onClose={onClose}
-      sx={{ width: 400 }}
-      PaperProps={{ sx: { width: 400 } }}
+      sx={{
+        '& .MuiDrawer-paper': {
+          width: '400px',
+          boxSizing: 'border-box',
+          p: 2
+        }
+      }}
     >
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Style Guide Rules
-        </Typography>
-        <List>
-          {Object.entries(rules).map(([category, categoryRules]) => (
-            <React.Fragment key={category}>
-              {renderCategoryHeader(category, categoryRules)}
-              <Collapse in={expandedCategories[category]} timeout="auto" unmountOnExit>
-                <List component="div" disablePadding>
-                  <ListItem sx={{ flexDirection: 'column', alignItems: 'stretch', pl: 4 }}>
-                    {categoryRules.map(rule => renderRule(rule))}
-                  </ListItem>
-                </List>
-              </Collapse>
-            </React.Fragment>
-          ))}
-        </List>
-      </Box>
+      <Typography variant="h6" sx={{ mb: 2 }}>Style Guide Rules</Typography>
+      <List>
+        {Object.entries(rules).map(([category, categoryRules]) => (
+          <React.Fragment key={category}>
+            {renderCategoryHeader(category, categoryRules)}
+            <Collapse in={expandedCategories[category]} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding>
+                <ListItem sx={{ display: 'flex', flexDirection: 'column', pl: 4 }}>
+                  <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                    {CategoryTags[category]?.map((tag) => (
+                      <Chip key={tag} label={tag} size="small" variant="outlined" />
+                    ))}
+                  </Stack>
+                  {categoryRules.map(renderRule)}
+                </ListItem>
+              </List>
+            </Collapse>
+          </React.Fragment>
+        ))}
+      </List>
     </Drawer>
   );
 };
