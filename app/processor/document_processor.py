@@ -249,6 +249,10 @@ class DocumentProcessor:
                 # Apply style corrections
                 corrected_text, changes = self.apply_style_corrections(chunk)
                 
+                # Skip chunks that have no changes
+                if not changes or corrected_text == chunk:
+                    continue
+                
                 # Create embedding for the chunk
                 chunk_embedding = self.model.encode([chunk])[0]
                 
@@ -270,7 +274,7 @@ class DocumentProcessor:
                         if dist < 100  # Filter out very distant matches
                     ]
                 
-                # Include all chunks, even if no corrections were made
+                # Add to results since we know it has changes
                 results.append({
                     "text": chunk,
                     "corrected_text": corrected_text,
@@ -278,7 +282,7 @@ class DocumentProcessor:
                     "changes": changes
                 })
             
-            logger.info(f"Processed {len(chunks)} chunks, found corrections for {len([r for r in results if r['changes']])} chunks")
+            logger.info(f"Processed {len(chunks)} chunks, found corrections for {len(results)} chunks")
             return results
             
         except Exception as e:
